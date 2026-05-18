@@ -168,6 +168,54 @@
             font-weight: 600;
             color: #667eea;
         }
+        .prize-image {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .prize-image:hover {
+            transform: scale(1.05);
+        }
+        /* 图片放大弹窗 */
+        .image-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-modal.show {
+            display: flex;
+        }
+        .image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .image-modal .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 40px;
+        }
         .prize-quantity {
             display: flex;
             align-items: center;
@@ -349,6 +397,12 @@
         </div>
     </div>
 
+    <!-- 图片放大弹窗 -->
+    <div class="image-modal" id="imageModal" onclick="closeImageModal()">
+        <span class="close-btn">&times;</span>
+        <img id="modalImage" src="" alt="奖品图片">
+    </div>
+
     <script>
         // 配置
         const BASE_TOKEN = 'NJaQbVxxgaI6Hds3yKWcGnY6nCm';
@@ -364,6 +418,17 @@
         let currentUserRecord = null;
         let prizeList = [];
         let selectedPrizes = {};
+
+        // 奖品图片URL配置
+        const PRIZE_IMAGES = {
+            '跑百校定制贴纸': 'images/跑百校定制贴纸.png',
+            '跑百校定制冰箱贴': 'images/跑百校定制冰箱贴.png',
+            '跑百校定制tee': 'images/跑百校定制tee.png',
+            '手机支架、挂链': 'images/手机支架、挂链.png',
+            '定制DIY挂绳': 'images/定制DIY挂绳.png',
+            '饮品优惠券': 'images/饮品优惠券.png',
+            'PEGASUS 42冷感毛巾': 'images/PEGASUS 42冷感毛巾.png'
+        };
 
         // 初始化：直接显示查询页面，隐藏配置
         function init() {
@@ -560,11 +625,13 @@
                 const points = item.fields['所需积分'] || 0;
                 const stock = (item.fields['库存数量'] || 0) - (item.fields['已兑数量'] || 0);
                 const canRedeem = userPoints >= points && stock > 0;
+                const imageUrl = PRIZE_IMAGES[name] || '';
 
                 const div = document.createElement('div');
                 div.className = 'prize-item' + (canRedeem ? '' : ' disabled');
                 div.id = 'prize-' + index;
                 div.innerHTML = `
+                    ${imageUrl ? `<img src="${imageUrl}" class="prize-image" onclick="showImageModal(this.src)" alt="${name}">` : ''}
                     <input type="checkbox" name="prize" value="${index}" ${canRedeem ? '' : 'disabled'} onclick="togglePrize(${index})">
                     <div class="prize-info">
                         <div class="prize-name">${name}</div>
@@ -850,6 +917,16 @@
             document.getElementById('resultMessage').style.display = 'none';
             selectedPrizes = {};
             currentUserRecord = null;
+        }
+
+        // 图片放大弹窗
+        function showImageModal(src) {
+            document.getElementById('modalImage').src = src;
+            document.getElementById('imageModal').classList.add('show');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.remove('show');
         }
 
         init();

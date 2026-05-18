@@ -364,11 +364,15 @@
                 <div class="info-card">
                     <h3>📊 我的积分</h3>
                     <div class="info-item">
-                        <span class="label">累计总积分</span>
+                        <span class="label">总积分</span>
                         <span class="value" id="totalPoints">-</span>
                     </div>
                     <div class="info-item">
-                        <span class="label">当前可用积分</span>
+                        <span class="label">已使用积分</span>
+                        <span class="value" id="usedPoints">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">剩余可用积分</span>
                         <span class="value highlight" id="availablePoints">-</span>
                     </div>
                 </div>
@@ -419,15 +423,15 @@
         let prizeList = [];
         let selectedPrizes = {};
 
-        // ✅ 修复：奖品图片路径，和你GitHub里的 `public/奖品图片/` 目录对应
+        // ✅ 修复：奖品图片路径
         const PRIZE_IMAGES = {
-            '跑百校定制贴纸': 'public/奖品图片/跑百校定制贴纸.png',
-            '跑百校定制冰箱贴': 'public/奖品图片/跑百校定制冰箱贴.png',
-            '跑百校定制tee': 'public/奖品图片/跑百校定制tee.png',
-            '手机支架、挂链': 'public/奖品图片/手机支架、挂链.png',
-            '定制DIY挂绳': 'public/奖品图片/定制DIY挂绳.png',
-            '饮品优惠券': 'public/奖品图片/饮品优惠券.png',
-            'PEGASUS 42冷感毛巾': 'public/奖品图片/PEGASUS 42冷感毛巾.png'
+            '跑百校定制贴纸': 'public/images/跑百校定制贴纸.png',
+            '跑百校定制冰箱贴': 'public/images/跑百校定制冰箱贴.png',
+            '跑百校定制tee': 'public/images/跑百校定制tee.png',
+            '手机支架、挂链': 'public/images/手机支架、挂链.png',
+            '定制DIY挂绳': 'public/images/定制DIY挂绳.png',
+            '饮品优惠券': 'public/images/饮品优惠券.png',
+            'PEGASUS 42冷感毛巾': 'public/images/PEGASUS 42冷感毛巾.png'
         };
 
         // 初始化：直接显示查询页面，隐藏配置
@@ -540,10 +544,11 @@
 
                 currentUserRecord = record;
 
-                document.getElementById('totalPoints').textContent = record.fields['累计总积分'] || 0;
-                document.getElementById('availablePoints').textContent = record.fields['当前可用积分'] || 0;
+                document.getElementById('totalPoints').textContent = record.fields['总积分'] || 0;
+                document.getElementById('usedPoints').textContent = record.fields['已使用积分'] || 0;
+                document.getElementById('availablePoints').textContent = record.fields['剩余可用积分'] || 0;
 
-                await loadPrizeList(record.fields['当前可用积分'] || 0);
+                await loadPrizeList(record.fields['剩余可用积分'] || 0);
 
                 document.getElementById('loadingSection').style.display = 'none';
                 document.getElementById('resultSection').style.display = 'block';
@@ -584,7 +589,7 @@
             let bestRecord = null;
             let maxPoints = -1;
             for (const item of matchedRecords) {
-                const available = item.fields['当前可用积分'] || 0;
+                const available = item.fields['剩余可用积分'] || 0;
                 if (available > maxPoints) {
                     maxPoints = available;
                     bestRecord = item;
@@ -670,7 +675,7 @@
         // 修改数量
         function changeQuantity(index, delta) {
             const prize = prizeList[index];
-            const userPoints = parseInt(currentUserRecord.fields['当前可用积分']) || 0;
+            const userPoints = parseInt(currentUserRecord.fields['剩余可用积分']) || 0;
             const prizePoints = parseInt(prize.fields['所需积分']) || 0;
             const stock = (prize.fields['库存数量'] || 0) - (prize.fields['已兑数量'] || 0);
 
@@ -700,7 +705,7 @@
 
         // 更新购物车
         function updateCartUI() {
-            const userPoints = parseInt(currentUserRecord.fields['当前可用积分']) || 0;
+            const userPoints = parseInt(currentUserRecord.fields['剩余可用积分']) || 0;
             const cartSummary = document.getElementById('cartSummary');
             const cartItems = document.getElementById('cartItems');
             const cartTotalPoints = document.getElementById('cartTotalPoints');
@@ -761,7 +766,7 @@
                 return;
             }
 
-            const userPoints = parseInt(currentUserRecord.fields['当前可用积分']) || 0;
+            const userPoints = parseInt(currentUserRecord.fields['剩余可用积分']) || 0;
             let totalPoints = 0;
             const prizeUpdates = [];
 
@@ -804,7 +809,7 @@
                 const existingRecord = currentUserRecord.fields['兑换记录'] || '';
                 const newRecord = existingRecord ? existingRecord + '\n' + exchangeRecord : exchangeRecord;
 
-                const currentExchangePoints = parseInt(currentUserRecord.fields['兑换消耗积分']) || 0;
+                const currentExchangePoints = parseInt(currentUserRecord.fields['已使用积分']) || 0;
                 const newExchangePoints = currentExchangePoints + totalPoints;
 
                 const updateResult = await feishuApiRequest(
@@ -815,7 +820,7 @@
                             record_id: currentUserRecord.record_id,
                             fields: {
                                 '兑换记录': newRecord,
-                                '兑换消耗积分': parseInt(newExchangePoints) || 0
+                                '已使用积分': parseInt(newExchangePoints) || 0
                             }
                         }]
                     },
@@ -882,10 +887,11 @@
                 }
 
                 selectedPrizes = {};
-                currentUserRecord.fields['兑换消耗积分'] = newExchangePoints;
-                const newAvailablePoints = parseInt(currentUserRecord.fields['累计总积分'] || 0) - newExchangePoints;
+                currentUserRecord.fields['已使用积分'] = newExchangePoints;
+                const newAvailablePoints = parseInt(currentUserRecord.fields['总积分'] || 0) - newExchangePoints;
+                document.getElementById('usedPoints').textContent = newExchangePoints;
                 document.getElementById('availablePoints').textContent = newAvailablePoints;
-                currentUserRecord.fields['当前可用积分'] = newAvailablePoints;
+                currentUserRecord.fields['剩余可用积分'] = newAvailablePoints;
                 await loadPrizeList(newAvailablePoints);
 
             } catch (error) {

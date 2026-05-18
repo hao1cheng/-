@@ -176,6 +176,8 @@
             margin-right: 10px;
             cursor: pointer;
             transition: transform 0.2s;
+            background:#eee;
+            border:1px solid #ddd;
         }
         .prize-image:hover {
             transform: scale(1.05);
@@ -423,15 +425,15 @@
         let prizeList = [];
         let selectedPrizes = {};
 
-        // ✅ 修复：和你仓库文件夹完全对应
+        // ========== 核心修复：加斜杠绝对路径 + 空白图占位样式 ==========
         const PRIZE_IMAGES = {
-            '跑百校定制贴纸': '奖品图片/跑百校定制贴纸.png',
-            '跑百校定制冰箱贴': '奖品图片/跑百校定制冰箱贴.png',
-            '跑百校定制tee': '奖品图片/跑百校定制tee.png',
-            '手机支架、挂链': '奖品图片/手机支架、挂链.png',
-            '定制DIY挂绳': '奖品图片/定制DIY挂绳.png',
-            '饮品优惠券': '奖品图片/饮品优惠券.png',
-            'PEGASUS 42冷感毛巾': '奖品图片/PEGASUS 42冷感毛巾.png'
+            '跑百校定制贴纸': '/奖品图片/跑百校定制贴纸.png',
+            '跑百校定制冰箱贴': '/奖品图片/跑百校定制冰箱贴.png',
+            '跑百校定制tee': '/奖品图片/跑百校定制tee.png',
+            '手机支架、挂链': '/奖品图片/手机支架、挂链.png',
+            '定制DIY挂绳': '/奖品图片/定制DIY挂绳.png',
+            '饮品优惠券': '/奖品图片/饮品优惠券.png',
+            'PEGASUS 42冷感毛巾': '/奖品图片/PEGASUS 42冷感毛巾.png'
         };
 
         // 初始化：直接显示查询页面，隐藏配置

@@ -831,37 +831,48 @@
                     throw new Error('兑换失败: ' + updateResult.msg);
                 }
 
-                for (const { record_id, quantity } of prizeUpdates) {
+                // 批量更新所有奖品库存（一次API）
+                const stockUpdates = prizeUpdates.map(({ record_id, quantity }) => {
                     const prize = prizeList.find(p => p.record_id === record_id);
                     const currentRedeemed = parseInt(prize.fields['已兑数量']) || 0;
-                    await feishuApiRequest(
-                        `bitable/v1/apps/${BASE_TOKEN}/tables/${PRIZE_TABLE_ID}/records/batch_update`,
-                        'POST',
-                        {
-                            records: [{
-                                record_id: record_id,
-                                fields: { '已兑数量': currentRedeemed + quantity }
-                            }]
-                        },
-                        accessToken
-                    );
+                    return { record_id, fields: { '已兑数量': currentRedeemed + quantity } };
+                });
+
+                const stockResult = await feishuApiRequest(
+                    `bitable/v1/apps/${BASE_TOKEN}/tables/${PRIZE_TABLE_ID}/records/batch_update`,
+                    'POST',
+                    { records: stockUpdates },
+                    accessToken
+                );
+
+                if (stockResult.code !== 0) {
+                    throw new Error('更新库存失败: ' + stockResult.msg);
                 }
 
-                for (const { idx, quantity } of prizeUpdates) {
+                // 批量创建兑换记录（一次API）
+                const rows = prizeUpdates.map(({ idx, quantity }) => {
                     const prize = prizeList[idx];
-                    const prizeName = prize.fields['奖品名称'] || '';
-                    const userName = currentUserRecord.fields['姓名'] || '';
-                    const phoneLast4 = getPhoneLast4(currentUserRecord.fields['手机后四位']);
+                    return [
+                        currentUserRecord.fields['姓名'] || '',
+                        getPhoneLast4(currentUserRecord.fields['手机后四位']),
+                        prize.fields['奖品名称'] || '',
+                        quantity,
+                        dateStr
+                    ];
+                });
 
-                    await feishuApiRequest(
-                        `bitable/v1/apps/${BASE_TOKEN}/tables/${EXCHANGE_RECORD_TABLE_ID}/records/batch_create`,
-                        'POST',
-                        {
-                            fields: ['姓名', '手机尾号', '兑换奖品', '兑换数量', '兑换时间'],
-                            rows: [[userName, phoneLast4, prizeName, quantity, dateStr]]
-                        },
-                        accessToken
-                    );
+                const recordResult = await feishuApiRequest(
+                    `bitable/v1/apps/${BASE_TOKEN}/tables/${EXCHANGE_RECORD_TABLE_ID}/records/batch_create`,
+                    'POST',
+                    {
+                        fields: ['姓名', '手机尾号', '兑换奖品', '兑换数量', '兑换时间'],
+                        rows: rows
+                    },
+                    accessToken
+                );
+
+                if (recordResult.code !== 0) {
+                    throw new Error('创建兑换记录失败: ' + recordResult.msg);
                 }
 
                 showResult('success', `恭喜！成功兑换 ${prizeUpdates.length} 件奖品，消耗 ${totalPoints} 积分。`);

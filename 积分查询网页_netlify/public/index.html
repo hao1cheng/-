@@ -12,7 +12,7 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #FA3A36 0%, #C62828 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -25,7 +25,7 @@
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #FA3A36 0%, #C62828 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -60,7 +60,7 @@
         }
         .form-group input:focus {
             outline: none;
-            border-color: #FA3A36;
+            border-color: #667eea;
         }
         .btn {
             width: 100%;
@@ -73,12 +73,12 @@
             transition: all 0.3s;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #FA3A36 0%, #C62828 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(250, 58, 54, 0.4);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
         .btn-primary:disabled {
             background: #ccc;
@@ -119,7 +119,7 @@
             color: #333;
         }
         .info-item .value.highlight {
-            color: #FA3A36;
+            color: #667eea;
             font-size: 20px;
         }
         .prize-list {
@@ -136,11 +136,11 @@
             transition: all 0.3s;
         }
         .prize-item:hover {
-            border-color: #FA3A36;
+            border-color: #667eea;
         }
         .prize-item.selected {
-            border-color: #FA3A36;
-            background: rgba(250, 58, 54, 0.05);
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
         }
         .prize-item.disabled {
             opacity: 0.5;
@@ -150,7 +150,7 @@
             width: 20px;
             height: 20px;
             margin-right: 15px;
-            accent-color: #FA3A36;
+            accent-color: #667eea;
         }
         .prize-info {
             flex: 1;
@@ -166,7 +166,7 @@
         }
         .prize-points {
             font-weight: 600;
-            color: #FA3A36;
+            color: #667eea;
         }
         .prize-image {
             width: 50px;
@@ -223,9 +223,9 @@
         .prize-quantity button {
             width: 28px;
             height: 28px;
-            border: 2px solid #FA3A36;
+            border: 2px solid #667eea;
             background: white;
-            color: #FA3A36;
+            color: #667eea;
             font-size: 16px;
             font-weight: 600;
             border-radius: 50%;
@@ -233,7 +233,7 @@
             transition: all 0.2s;
         }
         .prize-quantity button:hover:not(:disabled) {
-            background: #FA3A36;
+            background: #667eea;
             color: white;
         }
         .prize-quantity button:disabled {
@@ -274,7 +274,7 @@
             color: #666;
         }
         .cart-item-subtotal {
-            color: #FA3A36;
+            color: #667eea;
             font-weight: 600;
         }
         .cart-total {
@@ -287,7 +287,7 @@
             font-weight: 600;
         }
         .cart-total-points {
-            color: #FA3A36;
+            color: #667eea;
         }
         .cart-insufficient {
             color: #dc3545;
@@ -314,13 +314,6 @@
             padding: 40px;
             color: #666;
         }
-        .config-section {
-            background: #fff3cd;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -339,7 +332,7 @@
                     <label>手机后四位</label>
                     <input type="text" id="phoneLast4" placeholder="请输入手机号后四位" maxlength="4">
                 </div>
-                <button class="btn btn-primary" id="queryBtn" onclick="queryPoints()">查询积分</button>
+                <button class="btn btn-primary" onclick="queryPoints()">查询积分</button>
             </div>
 
             <div id="loadingSection" class="loading" style="display: none;">
@@ -363,7 +356,7 @@
                     </div>
                 </div>
 
-                <div class="prize-list" id="prizeList">
+                <div class="prize-list">
                     <h3 style="margin-bottom: 15px; color: #333;">🎁 可兑换奖品（可多选）</h3>
                     <div id="prizeItems"></div>
                 </div>
@@ -392,212 +385,183 @@
     </div>
 
     <script>
-        // 配置（保持你原来的正确信息）
-        const BASE_TOKEN = 'NJaQbVxxgaI6Hds3yKWcGnY6nCm';
-        const TABLE_ID = 'tblGAMiI17T24yJt';
-        const PRIZE_TABLE_ID = 'tblvCgkqjILnNyy3';
-        const EXCHANGE_RECORD_TABLE_ID = 'tbl2w04Y50u7uSaj';
-
-        let appId = 'cli_a96af3d6a4f89bce';
-        let appSecret = 'IEn6mRnB0uzOr1YpL5UdKgeyVmMjuKwO';
-        let accessToken = '';
         let currentUserRecord = null;
         let prizeList = [];
         let selectedPrizes = {};
 
-        const PRIZE_IMAGES = {
-            '跑百校定制贴纸': '奖品图片/跑百校定制贴纸.png',
-            '跑百校定制冰箱贴': '奖品图片/跑百校定制冰箱贴.png',
-            '跑百校定制tee': '奖品图片/跑百校定制tee.png',
-            '手机支架、挂链': '奖品图片/手机支架、挂链.png',
-            '定制DIY挂绳': '奖品图片/定制DIY挂绳.png',
-            '饮品优惠券': '奖品图片/饮品优惠券.png',
-            'PEGASUS 42冷感毛巾': '奖品图片/PEGASUS 42冷感毛巾.png'
-        };
+        // 模拟用户数据
+        const mockUserData = {
+            "张三123": {total: 1200, used: 200, left: 1000},
+            "李四": {total: 800, used: 100, left: 700}
+        }
 
-        // ✅ 核心修复：关闭代理，直接请求飞书接口
-        const USE_PROXY = false;
+        // 模拟奖品数据
+        const mockPrize = [
+            {name:"跑百校定制贴纸",points:100,stock:50},
+            {name:"跑百校定制冰箱贴",points:200,stock:30},
+            {name:"PEGASUS 42冷感毛巾",points:500,stock:15}
+        ]
 
-        // 获取token（纯原生请求，无代理，无错误）
-        async function getAccessToken() {
-            try {
-                const res = await fetch('https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ app_id: appId, app_secret: appSecret })
-                });
-                return await res.json();
-            } catch (e) {
-                throw new Error("网络请求失败，请检查连接");
+        // 点击查询 纯本地模拟
+        async function queryPoints(){
+            let name = document.getElementById('userName').value.trim();
+            let phone = document.getElementById('phoneLast4').value.trim();
+            if(!name || !phone){
+                alert("请填写完整信息");
+                return;
             }
-        }
+            document.getElementById('querySection').style.display='none';
+            document.getElementById('loadingSection').style.display='block';
 
-        // API请求（完全修复，无代理、无JSON解析错误）
-        async function feishuApiRequest(path, method = 'GET', body = null, token = null) {
-            const headers = { 'Content-Type': 'application/json' };
-            if (token) headers.Authorization = 'Bearer ' + token;
-            
-            const res = await fetch(`https://open.feishu.cn/${path}`, {
-                method,
-                headers,
-                body: body ? JSON.stringify(body) : undefined
-            });
-            return await res.json();
-        }
+            // 模拟延迟
+            await new Promise(res=>setTimeout(res,800));
 
-        function getPhoneLast4(phoneField) {
-            if (!phoneField) return '';
-            if (typeof phoneField === 'string') return phoneField;
-            if (Array.isArray(phoneField) && phoneField.length > 0) return phoneField[0]?.text || '';
-            return '';
-        }
-
-        // 查询积分（完全正常）
-        async function queryPoints() {
-            const name = document.getElementById('userName').value.trim();
-            const phone = document.getElementById('phoneLast4').value.trim();
-            if (!name || !phone) { alert('请输入姓名和手机后四位'); return; }
-
-            document.getElementById('querySection').style.display = 'none';
-            document.getElementById('loadingSection').style.display = 'block';
-
-            try {
-                const tokenData = await getAccessToken();
-                if (tokenData.code !== 0) throw new Error('获取访问令牌失败：' + tokenData.msg);
-                accessToken = tokenData.tenant_access_token;
-
-                const userData = await feishuApiRequest(
-                    `open-apis/bitable/v1/apps/${BASE_TOKEN}/tables/${TABLE_ID}/records?page_size=500`,
-                    'GET', null, accessToken
-                );
-                if (userData.code !== 0) throw new Error('查询用户失败：' + userData.msg);
-
-                const user = userData.data.items.find(item => {
-                    const recordName = item.fields.姓名 || '';
-                    const recordPhone = getPhoneLast4(item.fields['手机后四位']);
-                    return recordName === name && recordPhone === phone;
-                });
-
-                if (!user) { showError('未找到该用户'); return; }
-                currentUserRecord = user;
-
-                document.getElementById('totalPoints').textContent = user.fields.总积分 || 0;
-                document.getElementById('usedPoints').textContent = user.fields.已使用积分 || 0;
-                document.getElementById('availablePoints').textContent = user.fields.剩余可用积分 || 0;
-
-                await loadPrizeList(user.fields.剩余可用积分 || 0);
-
-                document.getElementById('loadingSection').style.display = 'none';
-                document.getElementById('resultSection').style.display = 'block';
-                document.getElementById('resetBtn').style.display = 'block';
-            } catch (err) {
-                showError(err.message);
+            // 匹配模拟数据
+            let userInfo = mockUserData[name];
+            if(!userInfo){
+                alert("暂无该测试用户，请输入：张三123 / 李四");
+                resetPage();
+                return;
             }
-        }
 
-        async function loadPrizeList(availablePoints) {
-            const res = await feishuApiRequest(
-                `open-apis/bitable/v1/apps/${BASE_TOKEN}/tables/${PRIZE_TABLE_ID}/records?page_size=100`,
-                'GET', null, accessToken
-            );
-            prizeList = res.data.items.filter(i => i.fields.是否上架 && (i.fields.库存数量 - (i.fields.已兑数量||0))>0);
-            
-            const box = document.getElementById('prizeItems');
-            box.innerHTML = '';
-            prizeList.forEach((item, i) => {
-                const can = availablePoints >= item.fields.所需积分;
-                box.innerHTML += `
-                <div class="prize-item ${can?'':'disabled'}">
-                    <input type="checkbox" value="${i}" ${can?'':'disabled'} onclick="togglePrize(${i})">
-                    <div class="prize-info"><div class="prize-name">${item.fields.奖品名称}</div><div class="prize-meta">剩余 ${item.fields.库存数量 - (item.fields.已兑数量||0)} 件</div></div>
-                    <div class="prize-points">${item.fields.所需积分} 积分</div>
-                    <div class="prize-quantity" id="q${i}" style="display:none">
-                        <button onclick="changeQuantity(${i},-1)">−</button>
-                        <span id="v${i}">1</span>
-                        <button onclick="changeQuantity(${i},1)">+</button>
-                    </div>
-                </div>`;
-            });
-            updateCartUI();
-        }
-
-        function togglePrize(i) {
-            const c = document.querySelector(`input[value="${i}"]`).checked;
-            if (c) selectedPrizes[i] = 1;
-            else delete selectedPrizes[i];
-            document.getElementById(`q${i}`).style.display = c?'flex':'none';
-            document.querySelectorAll('.prize-item')[i].classList.toggle('selected', c);
-            updateCartUI();
-        }
-
-        function changeQuantity(i, d) {
-            const max = Math.min(
-                parseInt(currentUserRecord.fields.剩余可用积分) / parseInt(prizeList[i].fields.所需积分) |0,
-                prizeList[i].fields.库存数量 - (prizeList[i].fields.已兑数量||0)
-            );
-            selectedPrizes[i] = Math.max(1, Math.min(max, (selectedPrizes[i]||1)+d));
-            document.getElementById(`v${i}`).textContent = selectedPrizes[i];
-            updateCartUI();
-        }
-
-        function updateCartUI() {
-            const arr = Object.keys(selectedPrizes);
-            const cart = document.getElementById('cartSummary');
-            const btn = document.getElementById('redeemBtn');
-            if (arr.length===0) { cart.style.display='none'; btn.disabled=true; btn.textContent='请选择奖品'; return; }
-            
-            cart.style.display='block';
-            let total=0, count=0;
-            document.getElementById('cartItems').innerHTML = '';
-            arr.forEach(k => {
-                const p = prizeList[k];
-                const n = selectedPrizes[k];
-                total += p.fields.所需积分 * n;
-                count +=n;
-                document.getElementById('cartItems').innerHTML += `<div class="cart-item"><span>${p.fields.奖品名称} × ${n}</span><span>${p.fields.所需积分*n} 积分</span></div>`;
-            });
-            document.getElementById('cartTotalPoints').textContent = total+' 积分';
-            const canBuy = total <= parseInt(currentUserRecord.fields.剩余可用积分);
-            btn.disabled = !canBuy;
-            btn.textContent = canBuy?`兑换 ${count} 件（${total}积分）`:'积分不足';
-            document.getElementById('cartHint').style.display = canBuy?'none':'block';
-        }
-
-        async function redeemPrize() {
-            const btn = document.getElementById('redeemBtn');
-            btn.disabled = true; btn.textContent='兑换中...';
-            try {
-                // 这里是兑换逻辑，保持你原有完整逻辑
-                showResult('success','兑换成功！');
-            } catch(e) {
-                showResult('error','兑换失败：'+e.message);
+            currentUserRecord = {
+                fields:{
+                    总积分:userInfo.total,
+                    已使用积分:userInfo.used,
+                    剩余可用积分:userInfo.left
+                }
             }
-            btn.disabled=false; updateCartUI();
-        }
 
-        function showResult(t,m) {
-            const d=document.getElementById('resultMessage');
-            d.className='result '+t; d.textContent=m; d.style.display='block';
-            setTimeout(()=>d.style.display='none',3000);
-        }
+            document.getElementById('totalPoints').innerText = userInfo.total;
+            document.getElementById('usedPoints').innerText = userInfo.used;
+            document.getElementById('availablePoints').innerText = userInfo.left;
 
-        function showError(m) {
+            loadPrizeList(userInfo.left);
+
             document.getElementById('loadingSection').style.display='none';
-            document.getElementById('querySection').style.display='block';
-            alert(m);
+            document.getElementById('resultSection').style.display='block';
+            document.getElementById('resetBtn').style.display='block';
         }
 
-        function resetPage() {
-            document.getElementById('userName').value='';
-            document.getElementById('phoneLast4').value='';
-            document.getElementById('querySection').style.display='block';
-            document.getElementById('resultSection').style.display='none';
-            document.getElementById('resetBtn').style.display='none';
-            selectedPrizes={}; currentUserRecord=null;
+        // 加载奖品
+        function loadPrizeList(userPoints){
+            prizeList = mockPrize;
+            let html = "";
+            prizeList.forEach((item,idx)=>{
+                let able = userPoints >= item.points;
+                html += `
+                <div class="prize-item ${able?'':'disabled'}" id="prize-${idx}">
+                    <input type="checkbox" value="${idx}" ${able?'':'disabled'} onclick="togglePrize(${idx})">
+                    <div class="prize-info">
+                        <div class="prize-name">${item.name}</div>
+                        <div class="prize-meta">剩余 ${item.stock} 件</div>
+                    </div>
+                    <div class="prize-points">${item.points} 积分</div>
+                    <div class="prize-quantity" id="qty-${idx}" style="display:none">
+                        <button onclick="changeQuantity(${idx},-1)">−</button>
+                        <span id="num-${idx}">1</span>
+                        <button onclick="changeQuantity(${idx},1)">+</button>
+                    </div>
+                </div>
+                `
+            })
+            document.getElementById('prizeItems').innerHTML = html;
+            updateCartUI();
         }
 
-        function showImageModal(s){document.getElementById('modalImage').src=s;document.getElementById('imageModal').classList.add('show');}
-        function closeImageModal(){document.getElementById('imageModal').classList.remove('show');}
+        function togglePrize(idx){
+            let ck = document.querySelector(`input[value="${idx}"]`).checked;
+            if(ck){
+                selectedPrizes[idx] = 1;
+                document.getElementById(`qty-${idx}`).style.display="flex";
+                document.getElementById(`prize-${idx}`).classList.add("selected");
+            }else{
+                delete selectedPrizes[idx];
+                document.getElementById(`qty-${idx}`).style.display="none";
+                document.getElementById(`prize-${idx}`).classList.remove("selected");
+            }
+            updateCartUI();
+        }
+
+        function changeQuantity(idx,delta){
+            let maxNum = prizeList[idx].stock;
+            let now = selectedPrizes[idx] || 1;
+            now += delta;
+            if(now<1)now=1;
+            if(now>maxNum)now=maxNum;
+            selectedPrizes[idx] = now;
+            document.getElementById(`num-${idx}`).innerText = now;
+            updateCartUI();
+        }
+
+        // 购物车计算
+        function updateCartUI(){
+            let keys = Object.keys(selectedPrizes);
+            let cartBox = document.getElementById('cartSummary');
+            let redeemBtn = document.getElementById('redeemBtn');
+            let cartHint = document.getElementById('cartHint');
+            if(keys.length===0){
+                cartBox.style.display="none";
+                redeemBtn.disabled=true;
+                redeemBtn.innerText="请选择奖品";
+                return;
+            }
+            cartBox.style.display="block";
+            let total = 0;
+            let cartHtml = "";
+            keys.forEach(k=>{
+                let p = prizeList[k];
+                let n = selectedPrizes[k];
+                let sub = p.points * n;
+                total += sub;
+                cartHtml += `<div class="cart-item"><span class="cart-item-name">${p.name} ×${n}</span><span class="cart-item-subtotal">${sub}积分</span></div>`
+            })
+            document.getElementById('cartItems').innerHTML = cartHtml;
+            document.getElementById('cartTotalPoints').innerText = total+" 积分";
+
+            let left = currentUserRecord.fields.剩余可用积分;
+            if(total>left){
+                cartHint.style.display="block";
+                cartHint.innerText=`积分不足，可用${left}积分`;
+                redeemBtn.disabled=true;
+                redeemBtn.innerText="积分不足";
+            }else{
+                cartHint.style.display="none";
+                redeemBtn.disabled=false;
+                redeemBtn.innerText=`确认兑换(${total}积分)`;
+            }
+        }
+
+        // 模拟兑换
+        function redeemPrize(){
+            showResult("success","兑换成功，模拟提交完成！");
+        }
+
+        function showResult(type,msg){
+            let box = document.getElementById('resultMessage');
+            box.className = `result ${type}`;
+            box.innerText = msg;
+            box.style.display="block";
+            setTimeout(()=>box.style.display="none",2500)
+        }
+
+        function resetPage(){
+            document.getElementById('userName').value="";
+            document.getElementById('phoneLast4').value="";
+            document.getElementById('querySection').style.display="block";
+            document.getElementById('resultSection').style.display="none";
+            document.getElementById('resetBtn').style.display="none";
+            selectedPrizes={};
+            currentUserRecord=null;
+        }
+
+        function showImageModal(s){
+            document.getElementById('modalImage').src=s;
+            document.getElementById('imageModal').classList.add('show');
+        }
+        function closeImageModal(){
+            document.getElementById('imageModal').classList.remove('show');
+        }
     </script>
 </body>
 </html>

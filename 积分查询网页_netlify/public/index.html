@@ -180,6 +180,7 @@
         .prize-image:hover {
             transform: scale(1.05);
         }
+        /* 图片放大弹窗 */
         .image-modal {
             display: none;
             position: fixed;
@@ -314,6 +315,13 @@
             padding: 40px;
             color: #666;
         }
+        .config-section {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -323,6 +331,19 @@
             <p>用积分兑换心仪奖品</p>
         </div>
         <div class="content">
+            <div class="config-section" id="configSection" style="display:none;">
+                <h4>⚙️ 首次使用请先配置</h4>
+                <div class="form-group">
+                    <label>App ID</label>
+                    <input type="text" id="appId" placeholder="cli_xxx">
+                </div>
+                <div class="form-group">
+                    <label>App Secret</label>
+                    <input type="password" id="appSecret" placeholder="输入 App Secret">
+                </div>
+                <button class="btn btn-secondary" onclick="saveConfig()">保存配置</button>
+            </div>
+
             <div id="querySection">
                 <div class="form-group">
                     <label>姓名</label>
@@ -332,7 +353,7 @@
                     <label>手机后四位</label>
                     <input type="text" id="phoneLast4" placeholder="请输入手机号后四位" maxlength="4">
                 </div>
-                <button class="btn btn-primary" onclick="queryPoints()">查询积分</button>
+                <button class="btn btn-primary" id="queryBtn" onclick="queryPoints()">查询积分</button>
             </div>
 
             <div id="loadingSection" class="loading" style="display: none;">
@@ -356,7 +377,7 @@
                     </div>
                 </div>
 
-                <div class="prize-list">
+                <div class="prize-list" id="prizeList">
                     <h3 style="margin-bottom: 15px; color: #333;">🎁 可兑换奖品（可多选）</h3>
                     <div id="prizeItems"></div>
                 </div>
@@ -372,6 +393,7 @@
                 </div>
 
                 <button class="btn btn-primary" id="redeemBtn" onclick="redeemPrize()" disabled>请选择奖品</button>
+
                 <div class="result" id="resultMessage"></div>
             </div>
 
@@ -379,189 +401,541 @@
         </div>
     </div>
 
+    <!-- 图片放大弹窗 -->
     <div class="image-modal" id="imageModal" onclick="closeImageModal()">
         <span class="close-btn">&times;</span>
         <img id="modalImage" src="" alt="奖品图片">
     </div>
 
     <script>
+        // 配置
+        const BASE_TOKEN = 'NJaQbVxxgaI6Hds3yKWcGnY6nCm';
+        const TABLE_ID = 'tblGAMiI17T24yJt';
+        const REDEEM_TABLE_ID = 'tblwDXswRj96hCHg';
+        const PRIZE_TABLE_ID = 'tblvCgkqjILnNyy3';
+        const EXCHANGE_RECORD_TABLE_ID = 'tbl2w04Y50u7uSaj';
+
+        // ✅ 自动填入默认配置，用户无需输入
+        let appId = 'cli_a96af3d6a4f89bce';
+        let appSecret = 'IEn6mRnB0uzOr1YpL5UdKgeyVmMjuKwO';
+        let accessToken = '';
         let currentUserRecord = null;
         let prizeList = [];
         let selectedPrizes = {};
 
-        // 模拟用户数据
-        const mockUserData = {
-            "张三123": {total: 1200, used: 200, left: 1000},
-            "李四": {total: 800, used: 100, left: 700}
+        // ✅ 修复：和你仓库文件夹完全对应
+        const PRIZE_IMAGES = {
+            '跑百校定制贴纸': '奖品图片/跑百校定制贴纸.png',
+            '跑百校定制冰箱贴': '奖品图片/跑百校定制冰箱贴.png',
+            '跑百校定制tee': '奖品图片/跑百校定制tee.png',
+            '手机支架、挂链': '奖品图片/手机支架、挂链.png',
+            '定制DIY挂绳': '奖品图片/定制DIY挂绳.png',
+            '饮品优惠券': '奖品图片/饮品优惠券.png',
+            'PEGASUS 42冷感毛巾': '奖品图片/PEGASUS 42冷感毛巾.png'
+        };
+
+        // 初始化：直接显示查询页面，隐藏配置
+        function init() {
+            document.getElementById('configSection').style.display = 'none';
+            document.getElementById('querySection').style.display = 'block';
         }
 
-        // 模拟奖品数据
-        const mockPrize = [
-            {name:"跑百校定制贴纸",points:100,stock:50},
-            {name:"跑百校定制冰箱贴",points:200,stock:30},
-            {name:"PEGASUS 42冷感毛巾",points:500,stock:15}
-        ]
+        // 废弃不用，但保留函数
+        function saveConfig() {}
 
-        // 点击查询 纯本地模拟
-        async function queryPoints(){
-            let name = document.getElementById('userName').value.trim();
-            let phone = document.getElementById('phoneLast4').value.trim();
-            if(!name || !phone){
-                alert("请填写完整信息");
+        // 是否使用代理
+        const USE_PROXY = true;
+        const PROXY_URL = '/.netlify/functions/proxy';
+
+        // 获取 tenant_access_token
+        async function getAccessToken() {
+            const url = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+            });
+            const data = await response.json();
+            if (data.code !== 0) {
+                throw new Error('获取访问令牌失败: ' + data.msg);
+            }
+            return data.tenant_access_token;
+        }
+
+        // API请求封装
+        async function feishuApiRequest(path, method = 'POST', body = null, token = null) {
+            if (USE_PROXY) {
+                const headers = {};
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+
+                const response = await fetch(PROXY_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path, method, headers, body })
+                });
+                return response.json();
+            } else {
+                const headers = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+
+                const response = await fetch(`https://open.feishu.cn/open-apis/${path}`, {
+                    method,
+                    headers,
+                    body: body ? JSON.stringify(body) : undefined
+                });
+                return response.json();
+            }
+        }
+
+        // 直接获取token
+        async function getAccessTokenDirect() {
+            const url = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ app_id: appId, app_secret: appSecret })
+            });
+            const data = await response.json();
+            if (data.code !== 0) {
+                throw new Error('获取访问令牌失败: ' + data.msg);
+            }
+            return data.tenant_access_token;
+        }
+
+        // 获取手机后四位
+        function getPhoneLast4(phoneField) {
+            if (!phoneField) return '';
+            if (typeof phoneField === 'string') return phoneField;
+            if (Array.isArray(phoneField) && phoneField.length > 0) {
+                return phoneField[0].text || '';
+            }
+            return '';
+        }
+
+        // 查询积分
+        async function queryPoints() {
+            const name = document.getElementById('userName').value.trim();
+            const phoneLast4 = document.getElementById('phoneLast4').value.trim();
+
+            if (!name || !phoneLast4) {
+                alert('请输入姓名和手机后四位');
                 return;
             }
-            document.getElementById('querySection').style.display='none';
-            document.getElementById('loadingSection').style.display='block';
 
-            // 模拟延迟
-            await new Promise(res=>setTimeout(res,800));
+            document.getElementById('querySection').style.display = 'none';
+            document.getElementById('loadingSection').style.display = 'block';
 
-            // 匹配模拟数据
-            let userInfo = mockUserData[name];
-            if(!userInfo){
-                alert("暂无该测试用户，请输入：张三123 / 李四");
-                resetPage();
-                return;
+            try {
+                const data = await feishuApiRequest(
+                    'auth/v3/tenant_access_token/internal',
+                    'POST',
+                    { app_id: appId, app_secret: appSecret }
+                );
+                if (data.code !== 0) {
+                    throw new Error('获取访问令牌失败: ' + data.msg);
+                }
+                accessToken = data.tenant_access_token;
+
+                const record = await findUserRecord(name, phoneLast4);
+                if (!record) {
+                    showError('未找到该用户信息，请确认姓名和手机号是否正确');
+                    return;
+                }
+
+                currentUserRecord = record;
+
+                document.getElementById('totalPoints').textContent = record.fields['总积分'] || 0;
+                document.getElementById('usedPoints').textContent = record.fields['已使用积分'] || 0;
+                document.getElementById('availablePoints').textContent = record.fields['剩余可用积分'] || 0;
+
+                await loadPrizeList(record.fields['剩余可用积分'] || 0);
+
+                document.getElementById('loadingSection').style.display = 'none';
+                document.getElementById('resultSection').style.display = 'block';
+                document.getElementById('resetBtn').style.display = 'block';
+
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // 查找用户记录
+        async function findUserRecord(name, phoneLast4) {
+            const data = await feishuApiRequest(
+                `bitable/v1/apps/${BASE_TOKEN}/tables/${TABLE_ID}/records?page_size=500`,
+                'GET',
+                null,
+                accessToken
+            );
+
+            if (data.code !== 0) {
+                throw new Error('查询失败: ' + data.msg);
             }
 
-            currentUserRecord = {
-                fields:{
-                    总积分:userInfo.total,
-                    已使用积分:userInfo.used,
-                    剩余可用积分:userInfo.left
+            const matchedRecords = data.data.items.filter(item => {
+                const recordName = item.fields['姓名'] || '';
+                const phoneField = item.fields['手机后四位'];
+                let recordPhoneLast4 = '';
+                if (Array.isArray(phoneField) && phoneField.length > 0) {
+                    recordPhoneLast4 = phoneField[0].text || '';
+                } else if (typeof phoneField === 'string') {
+                    recordPhoneLast4 = phoneField;
+                }
+                return recordName === name && recordPhoneLast4 === phoneLast4;
+            });
+
+            if (matchedRecords.length === 0) return null;
+
+            let bestRecord = null;
+            let maxPoints = -1;
+            for (const item of matchedRecords) {
+                const available = item.fields['剩余可用积分'] || 0;
+                if (available > maxPoints) {
+                    maxPoints = available;
+                    bestRecord = item;
                 }
             }
-
-            document.getElementById('totalPoints').innerText = userInfo.total;
-            document.getElementById('usedPoints').innerText = userInfo.used;
-            document.getElementById('availablePoints').innerText = userInfo.left;
-
-            loadPrizeList(userInfo.left);
-
-            document.getElementById('loadingSection').style.display='none';
-            document.getElementById('resultSection').style.display='block';
-            document.getElementById('resetBtn').style.display='block';
+            return bestRecord;
         }
 
-        // 加载奖品
-        function loadPrizeList(userPoints){
-            prizeList = mockPrize;
-            let html = "";
-            prizeList.forEach((item,idx)=>{
-                let able = userPoints >= item.points;
-                html += `
-                <div class="prize-item ${able?'':'disabled'}" id="prize-${idx}">
-                    <input type="checkbox" value="${idx}" ${able?'':'disabled'} onclick="togglePrize(${idx})">
-                    <div class="prize-info">
-                        <div class="prize-name">${item.name}</div>
-                        <div class="prize-meta">剩余 ${item.stock} 件</div>
-                    </div>
-                    <div class="prize-points">${item.points} 积分</div>
-                    <div class="prize-quantity" id="qty-${idx}" style="display:none">
-                        <button onclick="changeQuantity(${idx},-1)">−</button>
-                        <span id="num-${idx}">1</span>
-                        <button onclick="changeQuantity(${idx},1)">+</button>
-                    </div>
-                </div>
-                `
-            })
-            document.getElementById('prizeItems').innerHTML = html;
-            updateCartUI();
-        }
+        // 加载奖品列表
+        async function loadPrizeList(userPoints) {
+            const data = await feishuApiRequest(
+                `bitable/v1/apps/${BASE_TOKEN}/tables/${PRIZE_TABLE_ID}/records?page_size=100`,
+                'GET',
+                null,
+                accessToken
+            );
 
-        function togglePrize(idx){
-            let ck = document.querySelector(`input[value="${idx}"]`).checked;
-            if(ck){
-                selectedPrizes[idx] = 1;
-                document.getElementById(`qty-${idx}`).style.display="flex";
-                document.getElementById(`prize-${idx}`).classList.add("selected");
-            }else{
-                delete selectedPrizes[idx];
-                document.getElementById(`qty-${idx}`).style.display="none";
-                document.getElementById(`prize-${idx}`).classList.remove("selected");
+            if (data.code !== 0) {
+                throw new Error('加载奖品列表失败: ' + data.msg);
             }
-            updateCartUI();
-        }
 
-        function changeQuantity(idx,delta){
-            let maxNum = prizeList[idx].stock;
-            let now = selectedPrizes[idx] || 1;
-            now += delta;
-            if(now<1)now=1;
-            if(now>maxNum)now=maxNum;
-            selectedPrizes[idx] = now;
-            document.getElementById(`num-${idx}`).innerText = now;
-            updateCartUI();
-        }
+            prizeList = data.data.items.filter(item => {
+                const isEnabled = item.fields['是否上架'] === true;
+                const remainingStock = (item.fields['库存数量'] || 0) - (item.fields['已兑数量'] || 0);
+                return isEnabled && remainingStock > 0;
+            });
 
-        // 购物车计算
-        function updateCartUI(){
-            let keys = Object.keys(selectedPrizes);
-            let cartBox = document.getElementById('cartSummary');
-            let redeemBtn = document.getElementById('redeemBtn');
-            let cartHint = document.getElementById('cartHint');
-            if(keys.length===0){
-                cartBox.style.display="none";
-                redeemBtn.disabled=true;
-                redeemBtn.innerText="请选择奖品";
+            const container = document.getElementById('prizeItems');
+            container.innerHTML = '';
+
+            if (prizeList.length === 0) {
+                container.innerHTML = '<p style="color: #999; text-align: center;">暂无可兑换奖品</p>';
                 return;
             }
-            cartBox.style.display="block";
-            let total = 0;
-            let cartHtml = "";
-            keys.forEach(k=>{
-                let p = prizeList[k];
-                let n = selectedPrizes[k];
-                let sub = p.points * n;
-                total += sub;
-                cartHtml += `<div class="cart-item"><span class="cart-item-name">${p.name} ×${n}</span><span class="cart-item-subtotal">${sub}积分</span></div>`
-            })
-            document.getElementById('cartItems').innerHTML = cartHtml;
-            document.getElementById('cartTotalPoints').innerText = total+" 积分";
 
-            let left = currentUserRecord.fields.剩余可用积分;
-            if(total>left){
-                cartHint.style.display="block";
-                cartHint.innerText=`积分不足，可用${left}积分`;
-                redeemBtn.disabled=true;
-                redeemBtn.innerText="积分不足";
-            }else{
-                cartHint.style.display="none";
-                redeemBtn.disabled=false;
-                redeemBtn.innerText=`确认兑换(${total}积分)`;
+            prizeList.forEach((item, index) => {
+                const name = item.fields['奖品名称'] || '';
+                const points = item.fields['所需积分'] || 0;
+                const stock = (item.fields['库存数量'] || 0) - (item.fields['已兑数量'] || 0);
+                const canRedeem = userPoints >= points && stock > 0;
+                const imageUrl = PRIZE_IMAGES[name] || '';
+
+                const div = document.createElement('div');
+                div.className = 'prize-item' + (canRedeem ? '' : ' disabled');
+                div.id = 'prize-' + index;
+                div.innerHTML = `
+                    ${imageUrl ? `<img src="${imageUrl}" class="prize-image" onclick="showImageModal(this.src)" alt="${name}">` : ''}
+                    <input type="checkbox" name="prize" value="${index}" ${canRedeem ? '' : 'disabled'} onclick="togglePrize(${index})">
+                    <div class="prize-info">
+                        <div class="prize-name">${name}</div>
+                        <div class="prize-meta">剩余 ${stock} 件</div>
+                    </div>
+                    <div class="prize-points">${points} 积分</div>
+                    <div class="prize-quantity" id="qty-controls-${index}" style="display: none;">
+                        <button onclick="changeQuantity(${index}, -1)">−</button>
+                        <span id="qty-value-${index}">1</span>
+                        <button onclick="changeQuantity(${index}, 1)">+</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            updateCartUI();
+        }
+
+        // 切换奖品选中状态
+        function togglePrize(index) {
+            const checkbox = document.querySelector(`input[name="prize"][value="${index}"]`);
+            const qtyControls = document.getElementById('qty-controls-' + index);
+            const prizeItem = document.getElementById('prize-' + index);
+
+            if (checkbox.checked) {
+                selectedPrizes[index] = 1;
+                qtyControls.style.display = 'flex';
+                prizeItem.classList.add('selected');
+            } else {
+                delete selectedPrizes[index];
+                qtyControls.style.display = 'none';
+                prizeItem.classList.remove('selected');
+            }
+            updateCartUI();
+        }
+
+        // 修改数量
+        function changeQuantity(index, delta) {
+            const prize = prizeList[index];
+            const userPoints = parseInt(currentUserRecord.fields['剩余可用积分']) || 0;
+            const prizePoints = parseInt(prize.fields['所需积分']) || 0;
+            const stock = (prize.fields['库存数量'] || 0) - (prize.fields['已兑数量'] || 0);
+
+            let currentTotal = 0;
+            for (const [idx, qty] of Object.entries(selectedPrizes)) {
+                currentTotal += parseInt(prizeList[idx].fields['所需积分']) || 0;
+            }
+
+            const currentQty = selectedPrizes[index] || 1;
+            const currentPrizeTotal = prizePoints * currentQty;
+            const availableForThis = userPoints - (currentTotal - currentPrizeTotal);
+
+            const maxByPoints = Math.floor(availableForThis / prizePoints);
+            const maxByStock = stock;
+            const maxQty = Math.max(1, Math.min(maxByPoints, maxByStock));
+
+            const newQty = Math.max(1, Math.min(maxQty, currentQty + delta));
+            selectedPrizes[index] = newQty;
+
+            document.getElementById('qty-value-' + index).textContent = newQty;
+            const buttons = document.querySelectorAll('#qty-controls-' + index + ' button');
+            buttons[0].disabled = newQty <= 1;
+            buttons[1].disabled = newQty >= maxQty;
+
+            updateCartUI();
+        }
+
+        // 更新购物车
+        function updateCartUI() {
+            const userPoints = parseInt(currentUserRecord.fields['剩余可用积分']) || 0;
+            const cartSummary = document.getElementById('cartSummary');
+            const cartItems = document.getElementById('cartItems');
+            const cartTotalPoints = document.getElementById('cartTotalPoints');
+            const cartHint = document.getElementById('cartHint');
+            const redeemBtn = document.getElementById('redeemBtn');
+
+            const selectedIndices = Object.keys(selectedPrizes);
+
+            if (selectedIndices.length === 0) {
+                cartSummary.style.display = 'none';
+                redeemBtn.disabled = true;
+                redeemBtn.textContent = '请选择奖品';
+                return;
+            }
+
+            cartSummary.style.display = 'block';
+            cartItems.innerHTML = '';
+
+            let totalPoints = 0;
+            let totalQuantity = 0;
+
+            selectedIndices.forEach(idx => {
+                const prize = prizeList[idx];
+                const qty = selectedPrizes[idx];
+                const points = parseInt(prize.fields['所需积分']) || 0;
+                const subtotal = points * qty;
+                totalPoints += subtotal;
+                totalQuantity += qty;
+
+                const div = document.createElement('div');
+                div.className = 'cart-item';
+                div.innerHTML = `
+                    <span class="cart-item-name">${prize.fields['奖品名称']} × ${qty}</span>
+                    <span class="cart-item-subtotal">${subtotal} 积分</span>
+                `;
+                cartItems.appendChild(div);
+            });
+
+            cartTotalPoints.textContent = totalPoints + ' 积分';
+
+            if (totalPoints > userPoints) {
+                cartHint.textContent = '积分不足，当前可用 ' + userPoints + ' 积分，合计需要 ' + totalPoints + ' 积分';
+                cartHint.style.display = 'block';
+                redeemBtn.disabled = true;
+                redeemBtn.textContent = '积分不足';
+            } else {
+                cartHint.style.display = 'none';
+                redeemBtn.disabled = false;
+                redeemBtn.textContent = `兑换 ${totalQuantity} 件奖品（${totalPoints} 积分）`;
             }
         }
 
-        // 模拟兑换
-        function redeemPrize(){
-            showResult("success","兑换成功，模拟提交完成！");
+        // 兑换奖品
+        async function redeemPrize() {
+            const selectedIndices = Object.keys(selectedPrizes);
+            if (selectedIndices.length === 0 || !currentUserRecord) {
+                alert('请先选择奖品');
+                return;
+            }
+
+            const userPoints = parseInt(currentUserRecord.fields['剩余可用积分']) || 0;
+            let totalPoints = 0;
+            const prizeUpdates = [];
+
+            for (const idx of selectedIndices) {
+                const prize = prizeList[idx];
+                const qty = selectedPrizes[idx];
+                const points = parseInt(prize.fields['所需积分']) || 0;
+                const subtotal = points * qty;
+                const stock = (prize.fields['库存数量'] || 0) - (prize.fields['已兑数量'] || 0);
+
+                if (stock < qty) {
+                    showResult('error', `「${prize.fields['奖品名称']}」库存不足`);
+                    return;
+                }
+
+                totalPoints += subtotal;
+                prizeUpdates.push({ idx, quantity: qty, record_id: prize.record_id });
+            }
+
+            if (totalPoints > userPoints) {
+                showResult('error', '积分不足，无法兑换');
+                return;
+            }
+
+            const btn = document.getElementById('redeemBtn');
+            btn.disabled = true;
+            btn.textContent = '兑换中...';
+
+            try {
+                const now = new Date();
+                const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+                let exchangeRecordParts = [];
+                for (const { idx, quantity } of prizeUpdates) {
+                    const prize = prizeList[idx];
+                    exchangeRecordParts.push(`${prize.fields['奖品名称']} × ${quantity}`);
+                }
+                const exchangeRecord = `【兑换】${exchangeRecordParts.join('、')} - ${totalPoints}积分 - ${dateStr}`;
+
+                const existingRecord = currentUserRecord.fields['兑换记录'] || '';
+                const newRecord = existingRecord ? existingRecord + '\n' + exchangeRecord : exchangeRecord;
+
+                const currentExchangePoints = parseInt(currentUserRecord.fields['已使用积分']) || 0;
+                const newExchangePoints = currentExchangePoints + totalPoints;
+
+                const updateResult = await feishuApiRequest(
+                    `bitable/v1/apps/${BASE_TOKEN}/tables/${TABLE_ID}/records/batch_update`,
+                    'POST',
+                    {
+                        records: [{
+                            record_id: currentUserRecord.record_id,
+                            fields: {
+                                '兑换记录': newRecord,
+                                '已使用积分': parseInt(newExchangePoints) || 0
+                            }
+                        }]
+                    },
+                    accessToken
+                );
+
+                if (updateResult.code !== 0) {
+                    throw new Error('兑换失败: ' + updateResult.msg);
+                }
+
+                for (const { record_id, quantity } of prizeUpdates) {
+                    const prize = prizeList.find(p => p.record_id === record_id);
+                    const currentRedeemed = parseInt(prize.fields['已兑数量']) || 0;
+                    await feishuApiRequest(
+                        `bitable/v1/apps/${BASE_TOKEN}/tables/${PRIZE_TABLE_ID}/records/batch_update`,
+                        'POST',
+                        {
+                            records: [{
+                                record_id: record_id,
+                                fields: { '已兑数量': currentRedeemed + quantity }
+                            }]
+                        },
+                        accessToken
+                    );
+                }
+
+                for (const { idx, quantity } of prizeUpdates) {
+                    const prize = prizeList[idx];
+                    const prizeName = prize.fields['奖品名称'] || '';
+                    const userName = currentUserRecord.fields['姓名'] || '';
+                    const phoneLast4 = getPhoneLast4(currentUserRecord.fields['手机后四位']);
+
+                    await feishuApiRequest(
+                        `bitable/v1/apps/${BASE_TOKEN}/tables/${EXCHANGE_RECORD_TABLE_ID}/records/batch_create`,
+                        'POST',
+                        {
+                            fields: ['姓名', '手机尾号', '兑换奖品', '兑换数量', '兑换时间'],
+                            rows: [[userName, phoneLast4, prizeName, quantity, dateStr]]
+                        },
+                        accessToken
+                    );
+                }
+
+                showResult('success', `恭喜！成功兑换 ${prizeUpdates.length} 件奖品，消耗 ${totalPoints} 积分。`);
+
+                for (const { idx, quantity } of prizeUpdates) {
+                    const prize = prizeList[idx];
+                    prize.fields['已兑数量'] = (parseInt(prize.fields['已兑数量']) || 0) + quantity;
+                    const stock = (prize.fields['库存数量'] || 0) - (prize.fields['已兑数量'] || 0);
+                    const metaEl = document.querySelector(`#prize-${idx} .prize-meta`);
+                    if (metaEl) metaEl.textContent = `剩余 ${stock} 件`;
+
+                    if (stock <= 0) {
+                        const checkbox = document.querySelector(`#prize-${idx} input[type="checkbox"]`);
+                        if (checkbox && checkbox.checked) {
+                            checkbox.checked = false;
+                            delete selectedPrizes[idx];
+                            document.getElementById('qty-controls-' + idx).style.display = 'none';
+                            document.getElementById('prize-' + idx).classList.remove('selected');
+                        }
+                        checkbox.disabled = true;
+                        document.getElementById('prize-' + idx).classList.add('disabled');
+                    }
+                }
+
+                selectedPrizes = {};
+                currentUserRecord.fields['已使用积分'] = newExchangePoints;
+                const newAvailablePoints = parseInt(currentUserRecord.fields['总积分'] || 0) - newExchangePoints;
+                document.getElementById('usedPoints').textContent = newExchangePoints;
+                document.getElementById('availablePoints').textContent = newAvailablePoints;
+                currentUserRecord.fields['剩余可用积分'] = newAvailablePoints;
+                await loadPrizeList(newAvailablePoints);
+
+            } catch (error) {
+                showResult('error', error.message);
+                btn.disabled = false;
+                updateCartUI();
+            }
         }
 
-        function showResult(type,msg){
-            let box = document.getElementById('resultMessage');
-            box.className = `result ${type}`;
-            box.innerText = msg;
-            box.style.display="block";
-            setTimeout(()=>box.style.display="none",2500)
+        function showResult(type, message) {
+            const resultDiv = document.getElementById('resultMessage');
+            resultDiv.className = 'result ' + type;
+            resultDiv.textContent = message;
+            resultDiv.style.display = 'block';
         }
 
-        function resetPage(){
-            document.getElementById('userName').value="";
-            document.getElementById('phoneLast4').value="";
-            document.getElementById('querySection').style.display="block";
-            document.getElementById('resultSection').style.display="none";
-            document.getElementById('resetBtn').style.display="none";
-            selectedPrizes={};
-            currentUserRecord=null;
+        function showError(message) {
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('querySection').style.display = 'block';
+            alert(message);
         }
 
-        function showImageModal(s){
-            document.getElementById('modalImage').src=s;
+        function resetPage() {
+            document.getElementById('userName').value = '';
+            document.getElementById('phoneLast4').value = '';
+            document.getElementById('querySection').style.display = 'block';
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('resetBtn').style.display = 'none';
+            document.getElementById('resultMessage').style.display = 'none';
+            selectedPrizes = {};
+            currentUserRecord = null;
+        }
+
+        // 图片放大弹窗
+        function showImageModal(src) {
+            document.getElementById('modalImage').src = src;
             document.getElementById('imageModal').classList.add('show');
         }
-        function closeImageModal(){
+
+        function closeImageModal() {
             document.getElementById('imageModal').classList.remove('show');
         }
+
+        init();
     </script>
 </body>
 </html>

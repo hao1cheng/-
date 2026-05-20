@@ -831,6 +831,11 @@
                     throw new Error('兑换失败: ' + updateResult.msg);
                 }
 
+                // 更新本地缓存，避免覆盖之前的兑换记录
+                currentUserRecord.fields['已使用积分'] = newExchangePoints;
+                currentUserRecord.fields['兑换记录'] = newRecord;
+                currentUserRecord.fields['剩余可用积分'] = parseInt(currentUserRecord.fields['总积分'] || 0) - newExchangePoints;
+
                 // 批量更新所有奖品库存（一次API）
                 const stockUpdates = prizeUpdates.map(({ record_id, quantity }) => {
                     const prize = prizeList.find(p => p.record_id === record_id);
@@ -872,7 +877,8 @@
                 );
 
                 if (recordResult.code !== 0) {
-                    throw new Error('创建兑换记录失败: ' + recordResult.msg);
+                    console.error('兑换记录API返回:', recordResult);
+                    throw new Error('兑换记录处理异常: ' + recordResult.msg);
                 }
 
                 showResult('success', `恭喜！成功兑换 ${prizeUpdates.length} 件奖品，消耗 ${totalPoints} 积分。`);
@@ -898,12 +904,9 @@
                 }
 
                 selectedPrizes = {};
-                currentUserRecord.fields['已使用积分'] = newExchangePoints;
-                const newAvailablePoints = parseInt(currentUserRecord.fields['总积分'] || 0) - newExchangePoints;
                 document.getElementById('usedPoints').textContent = newExchangePoints;
-                document.getElementById('availablePoints').textContent = newAvailablePoints;
-                currentUserRecord.fields['剩余可用积分'] = newAvailablePoints;
-                await loadPrizeList(newAvailablePoints);
+                document.getElementById('availablePoints').textContent = parseInt(currentUserRecord.fields['总积分'] || 0) - newExchangePoints;
+                await loadPrizeList(parseInt(currentUserRecord.fields['总积分'] || 0) - newExchangePoints);
 
             } catch (error) {
                 showResult('error', error.message);

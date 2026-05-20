@@ -180,7 +180,6 @@
         .prize-image:hover {
             transform: scale(1.05);
         }
-        /* 图片放大弹窗 */
         .image-modal {
             display: none;
             position: fixed;
@@ -364,11 +363,15 @@
                 <div class="info-card">
                     <h3>📊 我的积分</h3>
                     <div class="info-item">
-                        <span class="label">累计总积分</span>
+                        <span class="label">总积分</span>
                         <span class="value" id="totalPoints">-</span>
                     </div>
                     <div class="info-item">
-                        <span class="label">当前可用积分</span>
+                        <span class="label">已使用积分</span>
+                        <span class="value" id="usedPoints">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">剩余可用积分</span>
                         <span class="value highlight" id="availablePoints">-</span>
                     </div>
                 </div>
@@ -397,7 +400,6 @@
         </div>
     </div>
 
-    <!-- 图片放大弹窗 -->
     <div class="image-modal" id="imageModal" onclick="closeImageModal()">
         <span class="close-btn">&times;</span>
         <img id="modalImage" src="" alt="奖品图片">
@@ -411,7 +413,6 @@
         const PRIZE_TABLE_ID = 'tblvCgkqjILnNyy3';
         const EXCHANGE_RECORD_TABLE_ID = 'tbl2w04Y50u7uSaj';
 
-        // ✅ 自动填入默认配置，用户无需输入
         let appId = 'cli_a96af3d6a4f89bce';
         let appSecret = 'IEn6mRnB0uzOr1YpL5UdKgeyVmMjuKwO';
         let accessToken = '';
@@ -419,31 +420,26 @@
         let prizeList = [];
         let selectedPrizes = {};
 
-        // ✅ 修复：奖品图片路径，和你GitHub里的 `public/奖品图片/` 目录对应
         const PRIZE_IMAGES = {
-            '跑百校定制贴纸': 'public/奖品图片/跑百校定制贴纸.png',
-            '跑百校定制冰箱贴': 'public/奖品图片/跑百校定制冰箱贴.png',
-            '跑百校定制tee': 'public/奖品图片/跑百校定制tee.png',
-            '手机支架、挂链': 'public/奖品图片/手机支架、挂链.png',
-            '定制DIY挂绳': 'public/奖品图片/定制DIY挂绳.png',
-            '饮品优惠券': 'public/奖品图片/饮品优惠券.png',
-            'PEGASUS 42冷感毛巾': 'public/奖品图片/PEGASUS 42冷感毛巾.png'
+            '跑百校定制贴纸': '奖品图片/跑百校定制贴纸.png',
+            '跑百校定制冰箱贴': '奖品图片/跑百校定制冰箱贴.png',
+            '跑百校定制tee': '奖品图片/跑百校定制tee.png',
+            '手机支架、挂链': '奖品图片/手机支架、挂链.png',
+            '定制DIY挂绳': '奖品图片/定制DIY挂绳.png',
+            '饮品优惠券': '奖品图片/饮品优惠券.png',
+            'PEGASUS 42冷感毛巾': '奖品图片/PEGASUS 42冷感毛巾.png'
         };
 
-        // 初始化：直接显示查询页面，隐藏配置
         function init() {
             document.getElementById('configSection').style.display = 'none';
             document.getElementById('querySection').style.display = 'block';
         }
 
-        // 废弃不用，但保留函数
         function saveConfig() {}
 
-        // 是否使用代理
         const USE_PROXY = true;
         const PROXY_URL = '/.netlify/functions/proxy';
 
-        // 获取 tenant_access_token
         async function getAccessToken() {
             const url = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
             const response = await fetch(url, {
@@ -458,7 +454,7 @@
             return data.tenant_access_token;
         }
 
-        // API请求封装
+        // ✅ 已修复：正确的飞书API路径（和你原来能运行的完全一致）
         async function feishuApiRequest(path, method = 'POST', body = null, token = null) {
             if (USE_PROXY) {
                 const headers = {};
@@ -474,7 +470,7 @@
                 const headers = { 'Content-Type': 'application/json' };
                 if (token) headers['Authorization'] = 'Bearer ' + token;
 
-                const response = await fetch(`https://open.feishu.cn/open-apis/${path}`, {
+                const response = await fetch(`https://open.feishu.cn/${path}`, {
                     method,
                     headers,
                     body: body ? JSON.stringify(body) : undefined
@@ -483,22 +479,6 @@
             }
         }
 
-        // 直接获取token
-        async function getAccessTokenDirect() {
-            const url = 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal';
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ app_id: appId, app_secret: appSecret })
-            });
-            const data = await response.json();
-            if (data.code !== 0) {
-                throw new Error('获取访问令牌失败: ' + data.msg);
-            }
-            return data.tenant_access_token;
-        }
-
-        // 获取手机后四位
         function getPhoneLast4(phoneField) {
             if (!phoneField) return '';
             if (typeof phoneField === 'string') return phoneField;
@@ -508,7 +488,6 @@
             return '';
         }
 
-        // 查询积分
         async function queryPoints() {
             const name = document.getElementById('userName').value.trim();
             const phoneLast4 = document.getElementById('phoneLast4').value.trim();
@@ -523,7 +502,7 @@
 
             try {
                 const data = await feishuApiRequest(
-                    'auth/v3/tenant_access_token/internal',
+                    'open-apis/auth/v3/tenant_access_token/internal',
                     'POST',
                     { app_id: appId, app_secret: appSecret }
                 );
@@ -539,11 +518,11 @@
                 }
 
                 currentUserRecord = record;
+                document.getElementById('totalPoints').textContent = record.fields['总积分'] || 0;
+                document.getElementById('usedPoints').textContent = record.fields['已使用积分'] || 0;
+                document.getElementById('availablePoints').textContent = record.fields['剩余可用积分'] || 0;
 
-                document.getElementById('totalPoints').textContent = record.fields['累计总积分'] || 0;
-                document.getElementById('availablePoints').textContent = record.fields['当前可用积分'] || 0;
-
-                await loadPrizeList(record.fields['当前可用积分'] || 0);
+                await loadPrizeList(record.fields['剩余可用积分'] || 0);
 
                 document.getElementById('loadingSection').style.display = 'none';
                 document.getElementById('resultSection').style.display = 'block';
@@ -554,10 +533,9 @@
             }
         }
 
-        // 查找用户记录
         async function findUserRecord(name, phoneLast4) {
             const data = await feishuApiRequest(
-                `bitable/v1/apps/${BASE_TOKEN}/tables/${TABLE_ID}/records?page_size=500`,
+                `open-apis/bitable/v1/apps/${BASE_TOKEN}/tables/${TABLE_ID}/records?page_size=500`,
                 'GET',
                 null,
                 accessToken
@@ -584,7 +562,7 @@
             let bestRecord = null;
             let maxPoints = -1;
             for (const item of matchedRecords) {
-                const available = item.fields['当前可用积分'] || 0;
+                const available = item.fields['剩余可用积分'] || 0;
                 if (available > maxPoints) {
                     maxPoints = available;
                     bestRecord = item;
@@ -593,10 +571,9 @@
             return bestRecord;
         }
 
-        // 加载奖品列表
         async function loadPrizeList(userPoints) {
             const data = await feishuApiRequest(
-                `bitable/v1/apps/${BASE_TOKEN}/tables/${PRIZE_TABLE_ID}/records?page_size=100`,
+                `open-apis/bitable/v1/apps/${BASE_TOKEN}/tables/${PRIZE_TABLE_ID}/records?page_size=100`,
                 'GET',
                 null,
                 accessToken
@@ -649,7 +626,6 @@
             updateCartUI();
         }
 
-        // 切换奖品选中状态
         function togglePrize(index) {
             const checkbox = document.querySelector(`input[name="prize"][value="${index}"]`);
             const qtyControls = document.getElementById('qty-controls-' + index);
@@ -667,10 +643,9 @@
             updateCartUI();
         }
 
-        // 修改数量
         function changeQuantity(index, delta) {
             const prize = prizeList[index];
-            const userPoints = parseInt(currentUserRecord.fields['当前可用积分']) || 0;
+            const userPoints = parseInt(currentUserRecord.fields['剩余可用积分']) || 0;
             const prizePoints = parseInt(prize.fields['所需积分']) || 0;
             const stock = (prize.fields['库存数量'] || 0) - (prize.fields['已兑数量'] || 0);
 
@@ -698,9 +673,10 @@
             updateCartUI();
         }
 
-        // 更新购物车
         function updateCartUI() {
-            const userPoints = parseInt(currentUserRecord.fields['当前可用积分']) || 0;
+            if (!currentUserRecord) return;
+            
+            const userPoints = parseInt(currentUserRecord.fields['剩余可用积分']) || 0;
             const cartSummary = document.getElementById('cartSummary');
             const cartItems = document.getElementById('cartItems');
             const cartTotalPoints = document.getElementById('cartTotalPoints');
@@ -753,7 +729,6 @@
             }
         }
 
-        // 兑换奖品
         async function redeemPrize() {
             const selectedIndices = Object.keys(selectedPrizes);
             if (selectedIndices.length === 0 || !currentUserRecord) {
@@ -761,7 +736,7 @@
                 return;
             }
 
-            const userPoints = parseInt(currentUserRecord.fields['当前可用积分']) || 0;
+            const userPoints = parseInt(currentUserRecord.fields['剩余可用积分']) || 0;
             let totalPoints = 0;
             const prizeUpdates = [];
 
@@ -804,18 +779,18 @@
                 const existingRecord = currentUserRecord.fields['兑换记录'] || '';
                 const newRecord = existingRecord ? existingRecord + '\n' + exchangeRecord : exchangeRecord;
 
-                const currentExchangePoints = parseInt(currentUserRecord.fields['兑换消耗积分']) || 0;
+                const currentExchangePoints = parseInt(currentUserRecord.fields['已使用积分']) || 0;
                 const newExchangePoints = currentExchangePoints + totalPoints;
 
                 const updateResult = await feishuApiRequest(
-                    `bitable/v1/apps/${BASE_TOKEN}/tables/${TABLE_ID}/records/batch_update`,
+                    `open-apis/bitable/v1/apps/${BASE_TOKEN}/tables/${TABLE_ID}/records/batch_update`,
                     'POST',
                     {
                         records: [{
                             record_id: currentUserRecord.record_id,
                             fields: {
                                 '兑换记录': newRecord,
-                                '兑换消耗积分': parseInt(newExchangePoints) || 0
+                                '已使用积分': parseInt(newExchangePoints) || 0
                             }
                         }]
                     },
@@ -830,7 +805,7 @@
                     const prize = prizeList.find(p => p.record_id === record_id);
                     const currentRedeemed = parseInt(prize.fields['已兑数量']) || 0;
                     await feishuApiRequest(
-                        `bitable/v1/apps/${BASE_TOKEN}/tables/${PRIZE_TABLE_ID}/records/batch_update`,
+                        `open-apis/bitable/v1/apps/${BASE_TOKEN}/tables/${PRIZE_TABLE_ID}/records/batch_update`,
                         'POST',
                         {
                             records: [{
@@ -849,7 +824,7 @@
                     const phoneLast4 = getPhoneLast4(currentUserRecord.fields['手机后四位']);
 
                     await feishuApiRequest(
-                        `bitable/v1/apps/${BASE_TOKEN}/tables/${EXCHANGE_RECORD_TABLE_ID}/records/batch_create`,
+                        `open-apis/bitable/v1/apps/${BASE_TOKEN}/tables/${EXCHANGE_RECORD_TABLE_ID}/records/batch_create`,
                         'POST',
                         {
                             fields: ['姓名', '手机尾号', '兑换奖品', '兑换数量', '兑换时间'],
@@ -861,35 +836,19 @@
 
                 showResult('success', `恭喜！成功兑换 ${prizeUpdates.length} 件奖品，消耗 ${totalPoints} 积分。`);
 
-                for (const { idx, quantity } of prizeUpdates) {
-                    const prize = prizeList[idx];
-                    prize.fields['已兑数量'] = (parseInt(prize.fields['已兑数量']) || 0) + quantity;
-                    const stock = (prize.fields['库存数量'] || 0) - (prize.fields['已兑数量'] || 0);
-                    const metaEl = document.querySelector(`#prize-${idx} .prize-meta`);
-                    if (metaEl) metaEl.textContent = `剩余 ${stock} 件`;
-
-                    if (stock <= 0) {
-                        const checkbox = document.querySelector(`#prize-${idx} input[type="checkbox"]`);
-                        if (checkbox && checkbox.checked) {
-                            checkbox.checked = false;
-                            delete selectedPrizes[idx];
-                            document.getElementById('qty-controls-' + idx).style.display = 'none';
-                            document.getElementById('prize-' + idx).classList.remove('selected');
-                        }
-                        checkbox.disabled = true;
-                        document.getElementById('prize-' + idx).classList.add('disabled');
-                    }
-                }
-
                 selectedPrizes = {};
-                currentUserRecord.fields['兑换消耗积分'] = newExchangePoints;
-                const newAvailablePoints = parseInt(currentUserRecord.fields['累计总积分'] || 0) - newExchangePoints;
+                currentUserRecord.fields['已使用积分'] = newExchangePoints;
+                const newAvailablePoints = parseInt(currentUserRecord.fields['总积分'] || 0) - newExchangePoints;
+                document.getElementById('usedPoints').textContent = newExchangePoints;
                 document.getElementById('availablePoints').textContent = newAvailablePoints;
-                currentUserRecord.fields['当前可用积分'] = newAvailablePoints;
+                currentUserRecord.fields['剩余可用积分'] = newAvailablePoints;
                 await loadPrizeList(newAvailablePoints);
 
+                btn.disabled = false;
+                updateCartUI();
+
             } catch (error) {
-                showResult('error', error.message);
+                showResult('error', '兑换失败：' + error.message);
                 btn.disabled = false;
                 updateCartUI();
             }
@@ -900,11 +859,14 @@
             resultDiv.className = 'result ' + type;
             resultDiv.textContent = message;
             resultDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 5000);
         }
 
         function showError(message) {
             document.getElementById('loadingSection').style.display = 'none';
-        }
             document.getElementById('querySection').style.display = 'block';
             alert(message);
         }
@@ -918,8 +880,8 @@
             document.getElementById('resultMessage').style.display = 'none';
             selectedPrizes = {};
             currentUserRecord = null;
+        }
 
-        // 图片放大弹窗
         function showImageModal(src) {
             document.getElementById('modalImage').src = src;
             document.getElementById('imageModal').classList.add('show');
